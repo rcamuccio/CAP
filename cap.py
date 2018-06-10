@@ -12,6 +12,7 @@
 
 from astropy.io import fits
 import argparse
+import ccdproc
 import glob
 import math
 import matplotlib.pyplot as plt
@@ -31,48 +32,79 @@ def do_argparse():
 
 	return input_dir
 
+def do_bias_master(bias_list, bias_dir):
+
+	print("<STATUS> Combining bias frames to master bias ...")
+	master_bias = ccdproc.combine(bias_list, method="median", unit="adu")
+
+	print("<STATUS> Writing master bias to disk ...")
+	ccdproc.fits_ccddata_writer(master_bias, str(bias_dir) + "/cap-bias-avg.fit")
+
+	return master_bias
+
+def do_stat(array):
+
+	mean = np.mean(array)
+	print("Mean: " + str(round(mean,3 )))
+
+	median = np.median(array)
+	print("Median: " + str(round(median, 3)))
+
+	stddev = np.std(array)
+	print("STD: " + str(round(stddev, 3)))
+
+	minimum = np.min(array)
+	print("Min: " + str(round(minimum, 3)))
+
+	maximum = np.max(array)
+	print("Max: " + str(round(maximum, 3)))
+
+	length = np.size(array)
+	print("NPIX: " + str(length))
+
+	return mean, median, stddev, minimum, maximum, length
+
 def main():
 
 	import time
 	start = time.time()
 
+
 	# Define input directory
 	input_dir = do_argparse()	
 
+
 	# Create bias frame list
 	bias_dir = input_dir + "bias"
-	bias_frame_list = []
+	bias_list = []
 
 	os.chdir(bias_dir)
 
 	for frame in glob.glob("*.fit"):
-		bias_frame_list.append(frame)
+		bias_list.append(frame)
+
 
 	# Calculate readout noise using bias frames
-	test_bias_1 = bias_frame_list[0]
+	test_bias_1 = bias_list[0]
 	test_bias_1_fits = fits.open(str(bias_dir) + "/" + str(test_bias_1))
 	test_bias_1_array = test_bias_1_fits[0].data
 	test_bias_1_array = test_bias_1_array.astype(float)
 
-	test_bias_2 = bias_frame_list[1]
+	test_bias_2 = bias_list[1]
 	test_bias_2_fits = fits.open(str(bias_dir) + "/" + str(test_bias_2))
 	test_bias_2_array = test_bias_2_fits[0].data
 	test_bias_2_array = test_bias_2_array.astype(float)
 
+	print("<STATUS> Subtracting frames " + str(test_bias_1) + " and " + str(test_bias_2) + " ...")
 	diff_bias_array = np.subtract(test_bias_1_array, test_bias_2_array)
-	diff_mean = np.mean(diff_bias_array)
-	diff_median = np.median(diff_bias_array)
-	diff_std = np.std(diff_bias_array)
 
-	print()
-	print("Difference between frames " + str(test_bias_1) + " and " + str(test_bias_2) + ":")
-	print("Mean: " + str(round(diff_mean, 3)))
-	print("Median: " + str(round(diff_mean, 3)))
-	print("STD: " + str(round(diff_std, 3)))
+	diff_stddev = do_stat(diff_bias_array)[2]
 
-	readout_noise = diff_std / math.sqrt(2)
+	readout_noise = diff_stddev / math.sqrt(2)
+	print("<OUTPUT> Calculated readout noise: " + str(round(readout_noise, 3)) + " ADU")
 
-	print("Readout noise: " + str(round(readout_noise, 3)) + " ADU")
+	do_bias_master(bias_list, bias_dir)
+
 
 	# Create dark frame list
 	dark_dir = input_dir + "dark"
