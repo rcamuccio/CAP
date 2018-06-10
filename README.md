@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CAP
 
 CAP is a CCD analysis pipeline. 
@@ -15,3 +16,6 @@ The pipeline works on a series of bias, dark, and flat FITS frames in order to p
 * Plots of the CCD linearity
 
 CAP is currently under construction. Above features will be added over time.
+=======
+# CAP
+>>>>>>> 97d95f674d82d7604157caa67dbaf572edd8c926
