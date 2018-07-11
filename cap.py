@@ -144,6 +144,7 @@ def main():
 		dark_list.append(frame)
 		print("<STATUS> Appending", str(frame), "to dark list ...")
 
+	# Dark frame 1
 	dark_1 = dark_list[0]
 	print("<STATUS> Reading dark 1 as", str(dark_1), "...", type(dark_1))
 
@@ -159,6 +160,7 @@ def main():
 	dark_min_bias_1_array = np.subtract(dark_1_array, master_bias)
 	print("<STATUS> Subtracting bias from", str(dark_1), "...", type(dark_min_bias_1_array))
 
+	# Dark frame 2
 	dark_2 = dark_list[1]
 	print("<STATUS> Reading dark 2 as", str(dark_2), "...", type(dark_2))
 
@@ -174,9 +176,7 @@ def main():
 	dark_min_bias_2_array = np.subtract(dark_2_array, master_bias)
 	print("<STATUS> Subtracting bias from", str(dark_2), "...", type(dark_min_bias_2_array))
 
-	diff_dark_array = np.subtract(dark_min_bias_1_array, dark_min_bias_2_array)
-	print("<STATUS> Subtracting corrected", str(dark_1), "and corrected", str(dark_2), "...", type(diff_dark_array))
-
+	# Dark sum
 	dark_sum = np.add(dark_min_bias_1_array, dark_min_bias_2_array)
 	print("<STATUS> Adding corrected", str(dark_1), "and corrected", str(dark_2), "...")
 
@@ -189,6 +189,7 @@ def main():
 	total_exp = dark_1_exptime + dark_2_exptime
 	print("<STATUS> Adding exposure times...", str(total_exp), "s")
 
+	# Dark current
 	dark_current_array = dark_sum / total_exp
 	print("<STATUS> Creating dark current frame ...", type(dark_current_array))
 
@@ -251,10 +252,15 @@ def main():
 	plt.yticks(**font)
 	plt.savefig(str(input_dir) + "/flat-hist.png")
 
-
+	# Initialize lists for (sum) mean vs (diff) variance plot
 	sum_mean_list = []
 	sum_std_list = []
 	diff_std_list = []
+
+	# Initialize lists for linearity plot
+	int_time_list = []
+	mean_val_list = []
+	stddev_list = []
 
 	for x in os.walk(flat_linear_dir):
 
@@ -270,6 +276,9 @@ def main():
 
 			frame_exptime = frame_fits[0].header["EXPTIME"]
 			print("<STATUS> Reading", str(frame), "exposure time...", str(frame_exptime), "s")
+
+			if frame_exptime not in int_time_list:
+				int_time_list.append(frame_exptime)
 
 			frame_array = frame_fits[0].data
 			print("<STATUS> Reading", str(frame), "data...", type(frame_array))
@@ -297,6 +306,16 @@ def main():
 			diff_std = np.std(data_diff)
 			diff_std_list.append(diff_std)
 
+
+			data_mean = np.mean(data_sum / 2)
+			mean_val_list.append(data_mean)
+
+			data1_std = np.std(data1)
+			data2_std = np.std(data2)
+
+			data_std = math.sqrt(data1_std**2 + data2_std**2)
+			stddev_list.append(data_std)
+
 	# Calculate variance of difference frames
 	diff_var_list = []
 	for value in diff_std_list:
@@ -317,8 +336,12 @@ def main():
 	popt, pcov = curve_fit(f, diff_var_array, sum_mean_array)
 	yfit = f(diff_var_array, *popt)
 
+	print()
 	print("(Unweighted) fit parameters:", popt)
+	log.write("(Unweighted) fit parameters: " + str(popt) + "\n\n")
+
 	print("(Unweighted) covariance matrix:", pcov)
+	log.write("(Unweighted) covariance matrix: " + str(pcov) + "\n\n")
 
 	# Slope
 	m = popt[0]
@@ -340,18 +363,32 @@ def main():
 	delta_R = R*math.sqrt((delta_sig/sig)**2 + (delta_g/g)**2)
 
 	print("m =", "%.4f" % m, "+/-", "%.4f" % delta_m)
+	log.write("m = " + str(m) + " +/- " + str(delta_m) + "\n\n")
+
 	print("b =", "%.4f" % b, "+/-", "%.4f" % delta_b)
+	log.write("b = " + str(b) + " +/- " + str(delta_b) + "\n\n")
+
 	print("g = (", "%.4f" % g, "+/-", "%.4f" % delta_g, ") ADU/e")
+	log.write("g = (" + str(g) + " +/- " + str(delta_g) + ") ADU/e\n\n")
+
 	print("RN = (", "%.4f" % sig, "+/-", "%.4f" % delta_sig, ") ADU")
+	log.write("RN = (" + str(sig) + " +/- " + str(delta_sig) + ") ADU\n\n")
+
 	print("RN = (", "%.4f" % R, "+/-", "%.4f" % delta_R, ") e")
+	log.write("RN = (" + str(R) + " +/- " + str(delta_R) + ") e\n\n")
+
 	print()
 
 	#
 	# Weighted fit calculation
 	popt2, pcov2 = curve_fit(f, diff_var_array, sum_mean_array, sigma=sum_std_array, absolute_sigma=True)
 	yfit2 = f(diff_var_array, *popt2)
+
 	print("(Weighted) fit parameters:", popt2)
+	log.write("(Weighted) fit parameters: " + str(popt2) + "\n\n")
+
 	print("(Weighted) covariance matrix:", pcov2)
+	log.write("(Weighted) covariance matrix: " + str(pcov2) + "\n\n")
 
 	# Slope
 	m = popt2[0]
@@ -373,10 +410,20 @@ def main():
 	delta_R = R*math.sqrt((delta_sig/sig)**2 + (delta_g/g)**2)
 
 	print("m =", "%.4f" % m, "+/-", "%.4f" % delta_m)
+	log.write("m = " + str(m) + " +/- " + str(delta_m) + "\n\n")
+
 	print("b =", "%.4f" % b, "+/-", "%.4f" % delta_b)
+	log.write("b = " + str(b) + " +/- " + str(delta_b) + "\n\n")
+
 	print("g = (", "%.4f" % g, "+/-", "%.4f" % delta_g, ") ADU/e")
+	log.write("g = (" + str(g) + " +/- " + str(delta_g) + ") ADU/e\n\n")
+
 	print("RN = (", "%.4f" % sig, "+/-", "%.4f" % delta_sig, ") ADU")
+	log.write("RN = (" + str(sig) + " +/- " + str(delta_sig) + ") ADU\n\n")
+
 	print("RN = (", "%.4f" % R, "+/-", "%.4f" % delta_R, ") e")
+	log.write("RN = (" + str(R) + " +/- " + str(delta_R) + ") e\n\n")
+
 	print()
 	
 	# Plotting
@@ -394,6 +441,16 @@ def main():
 	plt.legend()
 	plt.savefig(str(input_dir) + "mean_vs_variance.png", dpi=300)
 
+	plt.clf()
+	font = {"fontname":"Monospace",
+			"size":10}
+	plt.errorbar(int_time_list, mean_val_list, yerr=stddev_list, fmt="o", linewidth=0.5, markersize=0.5, capsize=2, capthick=0.5)
+	plt.title("Mean Pixel Value vs Integration Time \n CTMO SBIG ST-8300M", **font)
+	plt.xlabel("Integration Time (s)", **font)
+	plt.ylabel("Mean Frame Value (ADU)", **font)
+	plt.xticks(**font)
+	plt.yticks(**font)
+	plt.savefig(str(input_dir) + "linearity.png", dpi=300)
 
 	log.close()
 
