@@ -4,7 +4,7 @@
 # Richard Camuccio
 # 9 Jun 2018
 #
-# Last update: 11 Jul 2018
+# Last update: 12 Jul 2018
 #
 # CAP
 # CCD analysis pipeline
