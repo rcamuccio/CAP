@@ -297,16 +297,19 @@ def main():
 			data_sum = data1 + data2
 			data_diff = data1 - data2
 
-			sum_mean = np.mean(data_sum)
-			sum_mean_list.append(sum_mean)
+			# Data for mean vs variance plot
+			if frame_exptime < 80:
+				
+				sum_mean = np.mean(data_sum)
+				sum_mean_list.append(sum_mean)
 
-			sum_std = np.std(data_sum)
-			sum_std_list.append(sum_std)
+				sum_std = np.std(data_sum)
+				sum_std_list.append(sum_std)
 
-			diff_std = np.std(data_diff)
-			diff_std_list.append(diff_std)
+				diff_std = np.std(data_diff)
+				diff_std_list.append(diff_std)
 
-
+			# Data for linearity measurement
 			data_mean = np.mean(data_sum / 2)
 			mean_val_list.append(data_mean)
 
